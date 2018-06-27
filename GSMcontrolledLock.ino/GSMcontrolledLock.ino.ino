@@ -11,6 +11,7 @@ by lawliet.zou(lawliet.zou@gmail.com)
 #include <GPRS_Shield_Arduino.h>
 #include <SoftwareSerial.h>
 #include <Wire.h>
+#include <Servo.h>
 
 #define PIN_TX    7
 #define PIN_RX    8
@@ -22,6 +23,10 @@ char gprsBuffer[64];
 int i = 0;
 char *s = NULL;
 int inComing = 0;
+char phone[16];
+char datetime[24];
+int iServoPosition;
+Servo xservo; //create xservo object
 
 GPRS gprs(PIN_TX,PIN_RX,BAUDRATE);
 
@@ -41,6 +46,8 @@ void setup() {
 
   delay(3000);  
   Serial.println("Init Success, please call or send SMS message to me!");
+  xservo.attach(9);         //The PWM control of servo 1 is controlled by PIN 9 of the arduino UNO
+
 }
 
 void loop() {
@@ -60,11 +67,34 @@ void loop() {
       }else if(NULL != (s = strstr(gprsBuffer,"+CMTI: \"SM\""))) { //SMS: $$+CMTI: "SM",24$$
           char message[MESSAGE_LENGTH];
           int messageIndex = atoi(s+12);
-          gprs.readSMS(messageIndex, message,MESSAGE_LENGTH);
-          Serial.print("Recv Message: ");
+          gprs.readSMS(messageIndex, message,MESSAGE_LENGTH, phone, datetime);
+          if (strcmp(phone, "+32471070354") == 0) //With the function strcmp (stringcomparison) we compare the data stored in the variable phone with the desired telephone number
+          {
+            if (strcmp(message, "OPEN") == 0)
+            {
+              iServoPosition = 20;
+              Serial.print("Door open");
+            }
+            else if (strcmp(message, "CLOSE") == 0)
+            {
+              Serial.print("Door close");
+              iServoPosition = 180;
+            }
+            else
+            {
+              Serial.print("Message data was invalid.");
+            }
+          }
+          /*Serial.print("Recv Message: ");
           Serial.println(message);
+          Serial.print("From number: ");
+          Serial.println(phone);
+          Serial.print("Datetime: ");
+          Serial.println(datetime);   */
      }
      sim900_clean_buffer(gprsBuffer,32);  
      inComing = 0;
    }
+   //Servomotor control
+   xservo.write(iServoPosition);
 }
